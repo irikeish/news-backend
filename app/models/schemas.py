@@ -1,5 +1,6 @@
 """Request and response Pydantic schemas."""
 
+from datetime import datetime
 from typing import Generic, Literal, TypeVar, Optional
 
 from pydantic import BaseModel, Field
@@ -78,7 +79,7 @@ class ArticleResponse(BaseModel):
     title: str
     description: str
     url: str
-    publication_date: str
+    publication_date: datetime
     source_name: str
     category: list[str]
     relevance_score: float

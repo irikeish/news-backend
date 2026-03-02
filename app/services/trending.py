@@ -13,6 +13,7 @@ from app.db.init import get_database
 from app.models.article import Article
 from app.models.schemas import TrendingMeta
 from app.models.user_event import UserEvent
+from app.services.geocoder import reverse_geocode
 from app.services.news import NewsService
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ class TrendingResult(BaseModel):
 
 
 TRENDING_CACHE_TTL = 300
+RADIUS_BUCKETS = [10, 50, 200, 500]
 TRENDING_TOP_N = 100
 WEIGHT_CLICK = 3
 WEIGHT_VIEW = 1
@@ -45,6 +47,28 @@ class TrendingService:
         self._news = news_service or NewsService()
         self._collection = get_database()[UserEvent.Settings.name]
 
+    @staticmethod
+    def _snap_radius(radius_km: float) -> int:
+        """Snap radius to nearest bucket to reduce cache key variations."""
+        for bucket in RADIUS_BUCKETS:
+            if radius_km <= bucket:
+                return bucket
+        return RADIUS_BUCKETS[-1]
+
+    async def _build_cache_key(
+        self, lat: float, lon: float, radius_km: float
+    ) -> str:
+        """Build cache key using reverse geocoding with grid fallback."""
+        bucket = self._snap_radius(radius_km)
+
+        location = await reverse_geocode(lat, lon)
+        if location:
+            return f"trending:{location}:{bucket}"
+
+        # group coordinates within 11 KM
+        grid_coord = f"{round(lat, 1)}:{round(lon, 1)}"
+        return f"trending:geo:{grid_coord}:{bucket}"
+
     async def get_trending(
         self,
         lat: float,
@@ -53,7 +77,7 @@ class TrendingService:
         limit: int = 5,
         offset: int = 0,
     ) -> TrendingResult:
-        cache_key = f"trending:{round(lat, 1)}:{round(lon, 1)}:{radius_km}"
+        cache_key = await self._build_cache_key(lat, lon, radius_km)
         logger.debug("Trending cache lookup key=%s", cache_key)
         cached = await get(cache_key)
         if cached:

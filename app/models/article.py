@@ -1,5 +1,6 @@
 """Beanie Article document model."""
 
+from datetime import date, datetime
 from typing import Literal, Optional
 
 import pymongo
@@ -31,7 +32,18 @@ class Article(Document):
 
     description: str
     url: str
-    publication_date: str
+    publication_date: datetime
+
+    @field_validator("publication_date", mode="before")
+    @classmethod
+    def coerce_to_datetime(cls, v: object) -> datetime:
+        if isinstance(v, datetime):
+            return v
+        if isinstance(v, date):
+            return datetime(v.year, v.month, v.day)
+        if isinstance(v, str):
+            return datetime.fromisoformat(v.replace("Z", "+00:00"))
+        raise ValueError(f"Cannot parse publication_date: {v}")
     source_name: str
     category: list[str]
     relevance_score: float
@@ -43,11 +55,10 @@ class Article(Document):
         use_state_management = True
         use_revision = False
         indexes = [
-            "category",
-            "source_name",
-            "relevance_score",
             [("publication_date", pymongo.DESCENDING)],
-            IndexModel([("location", pymongo.GEOSPHERE)]),
+            [("category", pymongo.ASCENDING), ("publication_date", pymongo.DESCENDING)],
+            [("relevance_score", pymongo.DESCENDING), ("publication_date", pymongo.DESCENDING)],
+            IndexModel([("location", pymongo.GEOSPHERE), ("publication_date", pymongo.DESCENDING)]),
             IndexModel(
                 [("title", pymongo.TEXT), ("description", pymongo.TEXT)],
                 name="title_description_text",

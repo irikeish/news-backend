@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 
 from pydantic import ValidationError as PydanticValidationError
@@ -32,6 +33,12 @@ def normalize_article(item: dict) -> dict:
             data["category"] = [
                 c.lower() if isinstance(c, str) else str(c) for c in cats
             ]
+    pub = data.get("publication_date")
+    if isinstance(pub, str):
+        data["publication_date"] = datetime.fromisoformat(pub)
+    elif not isinstance(pub, datetime):
+        data["publication_date"] = datetime.now()
+
     lat = data.get("latitude")
     lon = data.get("longitude")
     if lat is not None and lon is not None:

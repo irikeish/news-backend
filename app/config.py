@@ -89,6 +89,11 @@ class Settings(BaseSettings):
         le=20,
         description="Default number of articles to return",
     )
+    news_buffer_days: int = Field(
+        default=7,
+        ge=1,
+        description="Only show articles published within this many days",
+    )
 
 
 @lru_cache

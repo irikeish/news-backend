@@ -24,3 +24,13 @@ class GeocoderService(ABC):
             Location with lat/lon or None if the location cannot be geocoded.
         """
         ...
+
+    @abstractmethod
+    async def reverse_geocode(self, lat: float, lon: float) -> str | None:
+        """
+        Convert coordinates to a city/locality name for cache segmentation.
+
+        Returns:
+            Normalized city name (e.g. "mumbai") or None if unavailable.
+        """
+        ...

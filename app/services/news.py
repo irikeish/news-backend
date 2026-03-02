@@ -2,7 +2,7 @@
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 from typing import List, Tuple
 
 from haversine import haversine
@@ -131,7 +131,11 @@ class NewsService:
         geocoded=None,
     ) -> Tuple[List[Article], int]:
 
-        match = {}
+        match = {
+            "publication_date": {
+                "$gte": datetime.now() - timedelta(days=settings.news_buffer_days)
+            }
+        }
         pipeline = []
 
         if "category" in intents and intent.category:
@@ -186,12 +190,10 @@ class NewsService:
                         "distanceField": "_distance",
                         "maxDistance": radius_km * 1000,
                         "spherical": True,
+                        "query": match,
                     }
                 }
             )
-
-            if match:
-                pipeline.append({"$match": match})
 
         elif has_text_search:
             match["$text"] = {"$search": base_query}
@@ -262,7 +264,7 @@ class NewsService:
 
         if "search" in intents:
             return self._apply_weighted_ranking(
-                articles, intent, intents, geocoded, query
+                articles
             )
 
         if "score" in intents:
@@ -285,25 +287,15 @@ class NewsService:
         )
         return articles
 
-    def _parse_publication_date(self, pub_date: str | None):
-        """Parse ISO date for sorting. Returns epoch for invalid/missing."""
+    def _parse_publication_date(self, pub_date: datetime | None) -> datetime:
+        """Return publication date for sorting. Returns datetime.min for missing."""
         if not pub_date:
-            return datetime.min.replace(tzinfo=timezone.utc)
-        try:
-            dt = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt
-        except (ValueError, TypeError):
-            return datetime.min.replace(tzinfo=timezone.utc)
+            return datetime.min
+        return pub_date
 
     def _apply_weighted_ranking(
         self,
-        articles: List[Article],
-        intent: ParsedIntent,
-        intents: list[str],
-        geocoded=None,
-        query: str = "",
+        articles: List[Article]
     ) -> List[Article]:
         """Search ranking: Mongo text score + relevance_score."""
         ranked = []

@@ -98,5 +98,5 @@ uv run python -m app.cli generate-events
 Options: `--count` / `-n` (default 10000), `--users` / `-u` (default 500), `--lat` and `--lon` to cluster events at a location for focused trending tests.
 
 ```bash
-uv run python -m app.cli generate-events --lat 18.02 --lon 72.70 -n 1000
+uv run python -m app.cli generate-events --lat 18.96 --lon 72.82 -n 100000
 ```
